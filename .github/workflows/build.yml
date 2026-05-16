@@ -142,7 +142,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ github.event.repository.full_name }}
+            ghcr.io/merijn-weiss/mondrian-docs
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -163,8 +163,8 @@ jobs:
       - name: Check Docker image
         working-directory: /tmp
         run: |
-          docker run --rm -i -v ${PWD}:/docs ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }} new .
-          docker run --rm -i -v ${PWD}:/docs ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }} build
+          docker run --rm -i -v ${PWD}:/docs ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }} new .
+          docker run --rm -i -v ${PWD}:/docs ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }} build
 
       - name: Set platforms
         if: github.event_name == 'release'
@@ -183,10 +183,10 @@ jobs:
       - name: Check manifest
         if: github.event_name == 'release'
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }}
 
       - name: Inspect image
         if: github.event_name == 'release'
         run: |
-          docker pull ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
-          docker image inspect ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
+          docker pull ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }}
+          docker image inspect ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }}
