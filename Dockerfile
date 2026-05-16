@@ -93,6 +93,10 @@ RUN \
 && \
   git config --system --add safe.directory /site
 
+# Add customer mkdodcs_drawio plugin
+COPY plugins/*.whl ./plugins/
+RUN pip install --no-cache-dir ./plugins/*.whl
+
 #  From empty image
 FROM scratch
 
