@@ -23,6 +23,7 @@ on:
   push:
     branches:
       - master
+      - 'mondrian-*'
   pull_request:
   release:
     types:
