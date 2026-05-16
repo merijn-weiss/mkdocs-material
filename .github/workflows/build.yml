@@ -162,11 +162,9 @@ jobs:
 
       - name: Check Docker image
         working-directory: /tmp
-        env:
-          REPO_FULL_NAME: '${{ github.event.repository.full_name }}'
         run: |
-          docker run --rm -i -v ${PWD}:/docs ${REPO_FULL_NAME,,}:${{ steps.meta.outputs.version }} new .
-          docker run --rm -i -v ${PWD}:/docs ${REPO_FULL_NAME,,}:${{ steps.meta.outputs.version }} build
+          docker run --rm -i -v ${PWD}:/docs ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }} new .
+          docker run --rm -i -v ${PWD}:/docs ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }} build
 
       - name: Set platforms
         if: github.event_name == 'release'
@@ -185,10 +183,10 @@ jobs:
       - name: Check manifest
         if: github.event_name == 'release'
         run: |
-          docker buildx imagetools inspect ${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
 
       - name: Inspect image
         if: github.event_name == 'release'
         run: |
-          docker pull ${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
-          docker image inspect ${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
+          docker pull ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
+          docker image inspect ghcr.io/${{ github.event.repository.full_name }}:${{ steps.meta.outputs.version }}
