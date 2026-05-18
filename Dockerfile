@@ -1,43 +1,18 @@
-# Copyright (c) 2016-2025 Martin Donath <martin.donath@squidfunk.com>
+FROM python:3.11-alpine3.23
 
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to
-# deal in the Software without restriction, including without limitation the
-# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-# sell copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-
-FROM python:3.11-alpine3.21 AS build
-
-# Build-time flags
 ARG WITH_PLUGINS=true
 
-# Environment variables
 ENV PACKAGES=/usr/local/lib/python3.11/site-packages
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Set build directory
 WORKDIR /tmp
 
-# Copy files necessary for build
 COPY material material
 COPY package.json package.json
 COPY pyproject.toml pyproject.toml
 COPY README.md README.md
 COPY *requirements.txt ./
 
-# Perform build and cleanup artifacts and caches
 RUN \
   apk upgrade --update-cache -a \
 && \
@@ -90,14 +65,13 @@ RUN \
     -path "*/__pycache__/*" \
     -exec rm -f {} \; \
 && \
-  git config --system --add safe.directory /docs \
-&& \
-  git config --system --add safe.directory /site
+  git config --system --add safe.directory '*' 
 
-# Add customer mkdodcs_drawio plugin
+# Add custom mkdocs_drawio plugin
 COPY plugins/*.whl ./plugins/
 RUN pip install --no-cache-dir ./plugins/*.whl
 
+# Add scripts
 COPY scripts/get-included-repos.sh /usr/local/bin/get-included-repos
 COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
 
@@ -105,18 +79,9 @@ RUN chmod +x \
     /usr/local/bin/get-included-repos \
     /docker-entrypoint.sh
 
-#  From empty image
-FROM scratch
-
-# Copy all from build
-COPY --from=build / /
-
-# Set working directory
 WORKDIR /docs
 
-# Expose MkDocs development server port
 EXPOSE 8000
 
-# Start development server by default
 ENTRYPOINT ["/sbin/tini", "--", "/docker-entrypoint.sh"]
 CMD ["serve", "--dev-addr=0.0.0.0:8000"]

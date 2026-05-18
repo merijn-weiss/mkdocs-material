@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Getting documentation from included repositories"
+INPUT_FILE="${1:-included_repos.txt}"
+
+echo "📥 Getting documentation from included repositories"
 
 mkdir -p ./included_repos
 
-if [[ ! -f included_repos.txt ]]; then
-    echo "ℹ️ No included_repos.txt found"
+if [[ ! -f "${INPUT_FILE}" ]]; then
+    echo "ℹ️ File '${INPUT_FILE}' not found"
     exit 0
 fi
 
-# Ensure newline at EOF
-if [[ -n "$(tail -c 1 included_repos.txt || true)" ]]; then
-    echo >> included_repos.txt
+# Ensure file ends with newline
+if [[ -n "$(tail -c 1 "${INPUT_FILE}" || true)" ]]; then
+    echo >> "${INPUT_FILE}"
 fi
 
 while IFS= read -r line || [[ -n "$line" ]]; do
 
+    # Skip empty lines/comments
     [[ -z "$line" ]] && continue
     [[ "$line" =~ ^# ]] && continue
 
@@ -41,25 +44,34 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         cut -d= -f2
     )
 
-    RESOLVED_TOKEN=$(printenv "$REP_ACCESS_TOKEN" || true)
+    if [[ -z "${REP_ACCESS_TOKEN}" ]]; then
+        echo "⚠️ REP_ACCESS_TOKEN missing"
+        continue
+    fi
 
-    if [[ -z "$RESOLVED_TOKEN" ]]; then
-        echo "⚠️ Token variable '$REP_ACCESS_TOKEN' not set"
+    RESOLVED_TOKEN="$(printenv "${REP_ACCESS_TOKEN}" || true)"
+
+    if [[ -z "${RESOLVED_TOKEN}" ]]; then
+        echo "⚠️ Environment variable '${REP_ACCESS_TOKEN}' not set"
         continue
     fi
 
     TARGET_DIR="./included_repos/$(basename "${REPO}" .git)"
 
-    if [[ -d "$TARGET_DIR/.git" ]]; then
-        echo "📂 Updating existing repo"
-        git -C "$TARGET_DIR" pull --ff-only
+    echo "📂 Target directory: ${TARGET_DIR}"
+
+    if [[ -d "${TARGET_DIR}/.git" ]]; then
+        echo "🔄 Updating existing repository"
+
+        git -C "${TARGET_DIR}" pull --ff-only
     else
-        echo "Cloning repo"
+        echo "📥 Cloning repository"
+
         git clone \
             "https://gitlab-access-token:${RESOLVED_TOKEN}@${REPO_PROJECT_NAMESPACE}${REPO}" \
-            "$TARGET_DIR"
+            "${TARGET_DIR}"
     fi
 
-done < included_repos.txt
+done < "${INPUT_FILE}"
 
 echo "✅ Finished processing repositories"
