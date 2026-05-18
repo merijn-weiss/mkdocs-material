@@ -3,19 +3,41 @@ set -euo pipefail
 
 INPUT_FILE="${1:-included_repos.txt}"
 
-echo "📥 Getting documentation from included repositories"
+#
+# Resolve base directory
+#
 
-mkdir -p ./included_repos
+BASE_DIR="${CI_PROJECT_DIR:-$(pwd)}"
+
+echo "📥 Getting documentation from included repositories"
+echo "📂 Base directory: ${BASE_DIR}"
+
+#
+# Ensure included repos directory exists
+#
+
+mkdir -p "${BASE_DIR}/included_repos"
+
+#
+# Validate input file
+#
 
 if [[ ! -f "${INPUT_FILE}" ]]; then
     echo "ℹ️ File '${INPUT_FILE}' not found"
     exit 0
 fi
 
+#
 # Ensure file ends with newline
+#
+
 if [[ -n "$(tail -c 1 "${INPUT_FILE}" || true)" ]]; then
     echo >> "${INPUT_FILE}"
 fi
+
+#
+# Process repositories
+#
 
 while IFS= read -r line || [[ -n "$line" ]]; do
 
@@ -44,6 +66,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         cut -d= -f2
     )
 
+    #
+    # Validate token variable
+    #
+
     if [[ -z "${REP_ACCESS_TOKEN}" ]]; then
         echo "⚠️ REP_ACCESS_TOKEN missing"
         continue
@@ -56,20 +82,32 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         continue
     fi
 
-    TARGET_DIR="./included_repos/$(basename "${REPO}" .git)"
+    #
+    # Build target path
+    #
+
+    TARGET_DIR="${BASE_DIR}/included_repos/$(basename "${REPO}" .git)"
 
     echo "📂 Target directory: ${TARGET_DIR}"
 
+    #
+    # Clone or update repository
+    #
+
     if [[ -d "${TARGET_DIR}/.git" ]]; then
+
         echo "🔄 Updating existing repository"
 
         git -C "${TARGET_DIR}" pull --ff-only
+
     else
+
         echo "📥 Cloning repository"
 
         git clone \
             "https://gitlab-access-token:${RESOLVED_TOKEN}@${REPO_PROJECT_NAMESPACE}${REPO}" \
             "${TARGET_DIR}"
+
     fi
 
 done < "${INPUT_FILE}"
