@@ -14,6 +14,14 @@ if [[ "${ENABLE_INCLUDED_REPOS:-false}" == "true" ]]; then
 
     INCLUDED_FILE="${INCLUDED_REPOS_FILE:-included_repos.txt}"
 
+    #
+    # Convert relative path to absolute GitLab project path
+    #
+
+    if [[ "${INCLUDED_FILE}" != /* ]]; then
+        INCLUDED_FILE="${CI_PROJECT_DIR}/${INCLUDED_FILE}"
+    fi
+
     echo "📥 Included repos enabled"
     echo "📄 Using file: ${INCLUDED_FILE}"
 
@@ -26,22 +34,17 @@ fi
 #
 # GitLab CI shell execution
 #
-
 if [[ "${1:-}" == "sh" ]] || \
    [[ "${1:-}" == "/bin/sh" ]] || \
    [[ "${1:-}" == "bash" ]] || \
    [[ "${1:-}" == "/bin/bash" ]]; then
 
-    echo "▶ Executing shell command: $*"
+    echo "▶ Starting CI shell"
     exec "$@"
 fi
 
-#
-# MkDocs CLI passthrough
-#
-
 if [[ $# -gt 0 ]]; then
-    echo "▶ Executing MkDocs command: mkdocs $*"
+    echo "▶ Running: mkdocs $1"
     exec mkdocs "$@"
 fi
 
