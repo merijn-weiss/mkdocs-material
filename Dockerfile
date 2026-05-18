@@ -42,6 +42,7 @@ RUN \
   apk upgrade --update-cache -a \
 && \
   apk add --no-cache \
+    bash \
     cairo \
     freetype-dev \
     git \
@@ -97,6 +98,13 @@ RUN \
 COPY plugins/*.whl ./plugins/
 RUN pip install --no-cache-dir ./plugins/*.whl
 
+COPY scripts/get-included-repos.sh /usr/local/bin/get-included-repos
+COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
+
+RUN chmod +x \
+    /usr/local/bin/get-included-repos \
+    /docker-entrypoint.sh
+
 #  From empty image
 FROM scratch
 
@@ -110,5 +118,5 @@ WORKDIR /docs
 EXPOSE 8000
 
 # Start development server by default
-ENTRYPOINT ["/sbin/tini", "--", "mkdocs"]
+ENTRYPOINT ["/sbin/tini", "--", "/docker-entrypoint.sh"]
 CMD ["serve", "--dev-addr=0.0.0.0:8000"]
