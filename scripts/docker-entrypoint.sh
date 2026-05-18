@@ -24,13 +24,25 @@ else
 fi
 
 #
-# If arguments are passed, execute them directly.
-# GitLab CI injects commands this way.
+# GitLab CI shell execution
+#
+
+if [[ "${1:-}" == "sh" ]] || \
+   [[ "${1:-}" == "/bin/sh" ]] || \
+   [[ "${1:-}" == "bash" ]] || \
+   [[ "${1:-}" == "/bin/bash" ]]; then
+
+    echo "▶ Executing shell command: $*"
+    exec "$@"
+fi
+
+#
+# MkDocs CLI passthrough
 #
 
 if [[ $# -gt 0 ]]; then
-    echo "▶ Executing command: $*"
-    exec "$@"
+    echo "▶ Executing MkDocs command: mkdocs $*"
+    exec mkdocs "$@"
 fi
 
 #
