@@ -32,17 +32,3 @@ colorama>=0.4
 paginate>=0.5
 backrefs>=5.7.post1
 requests>=2.30
-
-# Requirements for Mondrian
-mkdocs-minify-plugin
-mkdocs-include-markdown-plugin
-mkdocs-glightbox
-mkdocs-macros-plugin
-mkdocs-print-site-plugin
-mkdocs-git-revision-date-localized-plugin
-mkdocs-git-authors-plugin
-mkdocs-monorepo-plugin
-mkdocs-table-reader-plugin
-openpyxl
-mkdocs-awesome-nav
-python-dotenv

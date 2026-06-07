@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+COMMAND="${1:-build}"
+shift || true
+
+MONDRIAN_HOME="/opt/mondrian"
+
+BUILD_DIR="site"
+MKDOCS_HOST="${MKDOCS_HOST:-0.0.0.0}"
+MKDOCS_PORT="${MKDOCS_PORT:-8000}"
+
+GENERATED_CONFIG=".mkdocs.generated.yml"
+ASSETS_DIR="docs/_baseSiteAssets"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --site-dir)
+            BUILD_DIR="$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+#
+# Logging
+#
+log_whiteline() {
+    echo ""
+}
+
+log_step() {
+    echo "▶ $*"
+}
+
+log_success() {
+    echo "✓ $*"
+}
+
+log_warning() {
+    echo "⚠ $*"
+}
+
+log_error() {
+    echo "✗ $*"
+}
+
+#
+# Helpers
+#
+
+install_assets() {
+
+    mkdir -p docs
+
+    rm -rf "${ASSETS_DIR}"
+
+    cp -r \
+        "${MONDRIAN_HOME}/assets/_baseSiteAssets" \
+        docs/
+}
+
+render_config() {
+
+    python3 \
+        "${MONDRIAN_HOME}/scripts/render-config.py"
+}
+
+cleanup() {
+
+    rm -f "${GENERATED_CONFIG}"
+}
+
+cleanup_assets() {
+
+    rm -rf "${ASSETS_DIR}"
+}
+
+cleanup_all() {
+
+    log_step "Cleaning temporary files"
+
+    cleanup
+    cleanup_assets
+}
+
+#
+# Commands
+#
+
+case "${COMMAND}" in
+
+    build)
+
+        log_step "Preparing build workspace"
+
+        install_assets
+
+        log_step "Rendering configuration"
+
+        render_config
+
+        log_step "Building documentation"
+        log_whiteline
+
+        mkdocs build \
+            -f "${GENERATED_CONFIG}" \
+            --site-dir "${BUILD_DIR}"
+
+        cleanup
+        cleanup_assets
+
+        log_whiteline
+        log_success "Build complete"
+
+        ;;
+
+    serve)
+
+        log_step "Preparing build workspace"
+
+        install_assets
+
+        log_step "Rendering configuration"
+
+        render_config
+
+        trap cleanup_all EXIT INT TERM
+
+        log_step "Starting development server"
+
+        mkdocs serve \
+            -f "${GENERATED_CONFIG}" \
+            --dev-addr="${MKDOCS_HOST}:${MKDOCS_PORT}" &
+
+        MKDOCS_PID=$!
+
+        log_success \
+            "Listening on ${MKDOCS_HOST}:${MKDOCS_PORT}"
+
+        log_whiteline
+
+        wait "${MKDOCS_PID}"
+
+        ;;
+
+    render)
+
+        log_step "Preparing build workspace"
+
+        install_assets
+
+        log_step "Rendering configuration"
+
+        render_config
+
+        log_success "Configuration rendered"
+
+        ;;
+
+    validate)
+
+        log_step "Preparing build workspace"
+
+        install_assets
+
+        log_step "Rendering configuration"
+
+        render_config
+
+        log_step "Validating documentation"
+        log_whiteline
+
+        mkdocs build \
+            --strict \
+            -f "${GENERATED_CONFIG}" \
+            --site-dir /tmp/mondrian-validation >/dev/null
+
+        cleanup
+        cleanup_assets
+
+        log_whiteline
+        log_success "Configuration valid"
+
+        ;;
+
+    *)
+
+        log_error "Unknown command: ${COMMAND}"
+        echo ""
+        echo "Supported commands:"
+        echo "  build"
+        echo "  serve"
+        echo "  render"
+        echo "  validate"
+
+        exit 1
+
+        ;;
+
+esac

@@ -5,6 +5,10 @@ ARG WITH_PLUGINS=true
 ENV PACKAGES=/usr/local/lib/python3.11/site-packages
 ENV PYTHONDONTWRITEBYTECODE=1
 
+ENV MKDOCS_HOST=0.0.0.0
+ENV MKDOCS_PORT=8000
+ENV NO_MKDOCS_2_WARNING=true
+
 WORKDIR /tmp
 
 COPY material material
@@ -67,21 +71,26 @@ RUN \
 && \
   git config --system --add safe.directory '*' 
 
-# Add custom mkdocs_drawio plugin
-COPY plugins/*.whl ./plugins/
-RUN pip install --no-cache-dir ./plugins/*.whl
+# Install Mondrian Docs framework
+COPY mondrian /opt/mondrian
 
-# Add scripts
-COPY scripts/get-included-repos.sh /usr/local/bin/get-included-repos
-COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
-
-RUN chmod +x \
-    /usr/local/bin/get-included-repos \
-    /docker-entrypoint.sh
+RUN \
+  pip install --no-cache-dir \
+    -r /opt/mondrian/requirements.txt \
+&& \
+  find /opt/mondrian/plugins \
+    -name '*.whl' \
+    -exec pip install --no-cache-dir {} \; \
+&& \
+  chmod +x /opt/mondrian/scripts/* \
+&& \
+  ln -sf \
+    /opt/mondrian/scripts/mondrian-docs \
+    /usr/local/bin/mondrian-docs
 
 WORKDIR /docs
 
 EXPOSE 8000
 
-ENTRYPOINT ["/sbin/tini", "--", "/docker-entrypoint.sh"]
-CMD ["serve", "--dev-addr=0.0.0.0:8000"]
+ENTRYPOINT ["/sbin/tini", "--", "/opt/mondrian/scripts/docker-entrypoint.sh"]
+CMD ["serve"]

@@ -68,3 +68,11 @@ tmp
 
 # uv Python package manager
 uv.lock
+
+# Mondrian Docs
+.mkdocs.generated.yml
+docs/_baseSiteAssets/
+
+# Mondrian Docs
+.env
+docs/included_repositories/

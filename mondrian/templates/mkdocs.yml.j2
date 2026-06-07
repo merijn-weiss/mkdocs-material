@@ -1,0 +1,167 @@
+site_name: "{{ site.name }}"
+
+repo_url: "{{ repository.url }}"
+repo_name: "{{ repository.name }}"
+edit_uri: "{{ repository.edit_uri }}"
+
+theme:
+  name: material
+
+  favicon: _baseSiteAssets/icons/mondrianFavIcon.ico
+  logo: _baseSiteAssets/icons/mondrianIcon.png
+
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tracking
+    - navigation.indexes
+    - navigation.path
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - content.footnote.tooltips
+
+    - navigation.tabs
+    - navigation.sections
+
+    - content.action.edit
+    - content.action.view
+
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/link
+        name: Switch to light mode
+
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: "{{ theme.primary }}"
+      accent: "{{ theme.accent }}"
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: "{{ theme.primary }}"
+      accent: "{{ theme.accent }}"
+      toggle:
+        icon: material/toggle-switch-off
+        name: Switch to system preference
+
+  font: false
+
+extra_css:
+  - _baseSiteAssets/stylesheets/extra.css
+  - _baseSiteAssets/external/fonts.googleapis.com/css.49ea35f2.css
+
+extra_javascript:
+  - _baseSiteAssets/javascripts/pako.min.js
+  - _baseSiteAssets/javascripts/tablesort.js
+  - _baseSiteAssets/javascripts/tablesort.min.js
+  - _baseSiteAssets/javascripts/dynamicLinks.js
+  - _baseSiteAssets/javascripts/mermaid.min.js
+
+use_directory_urls: false
+
+plugins:
+  search:
+  meta:
+
+  minify:
+    minify_html: true
+
+{% if features.tags %}
+  tags:
+    tags_hierarchy: true
+{% endif %}
+
+  include-markdown:
+    opening_tag: "{!"
+    closing_tag: "!}"
+
+  glightbox:
+    width: 100%
+    auto_caption: true
+
+  git-revision-date-localized:
+    enable_creation_date: true
+    fallback_to_build_date: true
+
+{% if features.macros %}
+  macros:
+    module_name: docs/_baseSiteAssets/python/main
+    render_by_default: false
+    on_undefined: keep
+{% endif %}
+
+  drawio:
+    background: white
+    caption_prefix: "Figure: "
+    caption_page_separator: " - "
+    include_src: true
+    include_page: true
+    edit: {{ "true" if drawio.editor_url else "false" }}
+
+{% if drawio.editor_url %}
+    editor_base_url: "{{ drawio.editor_url }}"
+{% endif %}
+
+  awesome-nav:
+    filename: .nav.yml
+    logs:
+      nav_override: warning
+      root_title: warning
+      root_hide: warning
+      no_matches: warning
+
+{% if features.print_page %}
+  print-site:
+    add_to_navigation: true
+    print_page_title: 'Print'
+{% endif %}
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - meta
+  - md_in_html
+
+  - toc:
+      permalink: true
+
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+  - pymdownx.highlight:
+      use_pygments: true
+
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+  - pymdownx.tabbed:
+      alternate_style: true
+
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+  - pymdownx.tilde

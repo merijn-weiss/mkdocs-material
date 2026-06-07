@@ -1,0 +1,19 @@
+site:
+  name: Documentation
+
+repository:
+  url: ""
+  name: ""
+  branch: "main"
+
+theme:
+  primary: black
+  accent: black
+
+drawio:
+  editor_url: ""
+
+features:
+  macros:     false
+  tags:       false
+  print_page: false
