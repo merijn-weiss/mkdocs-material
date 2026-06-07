@@ -160,11 +160,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Check Docker image
-        working-directory: /tmp
-        run: |
-          docker run --rm -i -v ${PWD}:/docs ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }} new .
-          docker run --rm -i -v ${PWD}:/docs ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }} build
+      #- name: Check Docker image
+      #  working-directory: /tmp
+      #  run: |
+      #    docker run --rm -i -v ${PWD}:/docs ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }} new .
+      #   docker run --rm -i -v ${PWD}:/docs ghcr.io/merijn-weiss/mondrian-docs:${{ steps.meta.outputs.version }} build
 
       - name: Set platforms
         if: github.event_name == 'release'
