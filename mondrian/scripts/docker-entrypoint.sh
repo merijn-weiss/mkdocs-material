@@ -15,6 +15,7 @@ echo "=================================================="
 ensure_gitignore() {
 
     local MONDRIAN_ENTRIES=(
+        "site"
         ".env"
         ".mkdocs.generated.yml"
         "docs/_baseSiteAssets/"

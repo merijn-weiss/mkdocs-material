@@ -103,6 +103,16 @@ def apply_defaults(config):
 
     config.setdefault(
         "included_repositories",
+        {}
+    )
+
+    config["included_repositories"].setdefault(
+        "defaults",
+        {}
+    )
+
+    config["included_repositories"].setdefault(
+        "repositories",
         []
     )
 
@@ -133,6 +143,51 @@ def apply_defaults(config):
             f"{repository['docs_dir']}"
         )
 
+def apply_repository_defaults(config):
+
+    included = config.get(
+        "included_repositories",
+        {}
+    )
+
+    defaults = included.get(
+        "defaults",
+        {}
+    )
+
+    repositories = included.get(
+        "repositories",
+        []
+    )
+
+    for repo in repositories:
+
+        merged = dict(defaults)
+
+        merged.update(repo)
+
+        repo.clear()
+        repo.update(merged)
+
+def normalize_repository_configuration(config):
+    """
+    Normalize included repository configuration.
+    """
+
+    included = config.get(
+        "included_repositories",
+        {}
+    )
+
+    included.setdefault(
+        "defaults",
+        {}
+    )
+
+    included.setdefault(
+        "repositories",
+        []
+    )
 
 def manage_generated_content(config):
 
@@ -195,6 +250,18 @@ config = deep_merge(
 #
 
 apply_defaults(
+    config
+)
+
+#
+# Apply Repository Defaults
+#
+
+apply_repository_defaults(
+    config
+)
+
+normalize_repository_configuration(
     config
 )
 

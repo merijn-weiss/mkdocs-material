@@ -10,20 +10,10 @@ Synchronizes external documentation repositories into:
 
 Repositories are cached locally and updated on subsequent runs.
 
-Layout:
-
-docs/
-└── included_repositories/
-    ├── .cache/
-    │   └── namespace__repository/
-    │       ├── .git
-    │       └── docs/
-    └── applications/
-        └── nextcloud -> .cache/.../docs
-
 This preserves Git history for MkDocs plugins such as:
 
     mkdocs-git-revision-date-localized-plugin
+    mkdocs-git-authors-plugin
 
 Supported providers:
   - gitlab
@@ -33,6 +23,7 @@ Supported providers:
 import os
 import shutil
 import subprocess
+import yaml
 
 from pathlib import Path
 
@@ -41,20 +32,111 @@ DEFAULT_WORKSPACE = (
     "docs/included_repositories"
 )
 
-
 DEFAULT_CACHE = (
     ".cache"
 )
+
+MANIFEST_FILE = (
+    "docs.manifest.yml"
+)
+
+
+def load_yaml(path):
+
+    p = Path(path)
+
+    if not p.exists():
+        return {}
+
+    with open(p, "r") as f:
+        return yaml.safe_load(f) or {}
+
+
+def merge_repository_defaults(included_repositories):
+
+    defaults = included_repositories.get(
+        "defaults",
+        {}
+    )
+
+    repositories = included_repositories.get(
+        "repositories",
+        []
+    )
+
+    result = []
+
+    for repo in repositories:
+
+        merged = dict(defaults)
+        merged.update(repo)
+
+        result.append(
+            merged
+        )
+
+    return result
+
+
+def derive_root_target_path(repo):
+
+    namespace_leaf = (
+        repo["namespace"]
+        .split("/")[-1]
+    )
+
+    return str(
+        Path(namespace_leaf) /
+        repo["repository"]
+    )
+
+
+def derive_child_target_path(
+    parent_target_path,
+    child_repo
+):
+
+    namespace_leaf = (
+        child_repo["namespace"]
+        .split("/")[-1]
+    )
+
+    return str(
+        Path(parent_target_path) /
+        "included_repositories" /
+        namespace_leaf /
+        child_repo["repository"]
+    )
+
+
+def run_git(cmd):
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+
+        raise RuntimeError(
+            result.stderr.strip()
+        )
 
 
 def sync_included_repositories(config):
     """
     Synchronize repositories defined in the manifest.
+    Supports recursive included repositories.
     """
 
-    repositories = config.get(
+    included = config.get(
         "included_repositories",
-        []
+        {}
+    )
+
+    repositories = merge_repository_defaults(
+        included
     )
 
     if not repositories:
@@ -83,35 +165,85 @@ def sync_included_repositories(config):
         "▶ Synchronizing included repositories"
     )
 
-    for repo in repositories:
+    visited = set()
 
-        sync_repository(
-            repo,
-            workspace,
-            cache_dir
-        )
+    sync_repository_list(
+        repositories,
+        workspace,
+        cache_dir,
+        visited
+    )
 
     print(
         "✓ Repository synchronization complete"
     )
 
 
+def sync_repository_list(
+    repositories,
+    workspace,
+    cache_dir,
+    visited
+):
+
+    for repo in repositories:
+
+        checkout_dir = sync_repository(
+            repo,
+            workspace,
+            cache_dir,
+            visited
+        )
+
+        if not checkout_dir:
+            continue
+
+        sync_child_repositories(
+            repo,
+            checkout_dir,
+            workspace,
+            cache_dir,
+            visited
+        )
+
+
 def sync_repository(
     repo,
     workspace,
-    cache_dir
+    cache_dir,
+    visited
 ):
     """
     Synchronize a single repository.
     """
 
-    title = repo["title"]
+    title = repo.get(
+        "title",
+        repo["repository"]
+    )
 
     provider = repo["provider"]
     namespace = repo["namespace"]
     repository = repo["repository"]
-
     token_env = repo["token_env"]
+
+    repo_key = (
+        provider,
+        namespace,
+        repository
+    )
+
+    if repo_key in visited:
+
+        print(
+            f"  ↺ [{title}] Already synchronized, skipping"
+        )
+
+        return None
+
+    visited.add(
+        repo_key
+    )
 
     branch = repo.get(
         "branch",
@@ -125,7 +257,9 @@ def sync_repository(
 
     target_path = repo.get(
         "target_path",
-        repository
+        derive_root_target_path(
+            repo
+        )
     )
 
     token = os.environ.get(
@@ -140,7 +274,7 @@ def sync_repository(
             f"'{token_env}' not set"
         )
 
-        return
+        return None
 
     clone_url = build_clone_url(
         provider,
@@ -185,6 +319,70 @@ def sync_repository(
         title
     )
 
+    repo["target_path"] = target_path
+
+    return checkout_dir
+
+
+def sync_child_repositories(
+    parent_repo,
+    parent_checkout_dir,
+    workspace,
+    cache_dir,
+    visited
+):
+    """
+    Read child included repositories from a synced repository manifest.
+    """
+
+    manifest_file = (
+        parent_checkout_dir /
+        MANIFEST_FILE
+    )
+
+    if not manifest_file.exists():
+        return
+
+    child_manifest = load_yaml(
+        manifest_file
+    )
+
+    included = child_manifest.get(
+        "included_repositories",
+        {}
+    )
+
+    if not included:
+        return
+
+    repositories = merge_repository_defaults(
+        included
+    )
+
+    if not repositories:
+        return
+
+    parent_target_path = parent_repo.get(
+        "target_path",
+        derive_root_target_path(
+            parent_repo
+        )
+    )
+
+    for repo in repositories:
+
+        repo["target_path"] = derive_child_target_path(
+            parent_target_path,
+            repo
+        )
+
+    sync_repository_list(
+        repositories,
+        workspace,
+        cache_dir,
+        visited
+    )
+
 
 def build_clone_url(
     provider,
@@ -227,6 +425,8 @@ def clone_or_update_repository(
 ):
     """
     Clone or update repository.
+
+    Uses full Git history for MkDocs Git plugins.
     """
 
     try:
@@ -237,38 +437,36 @@ def clone_or_update_repository(
                 "    ↻ Updating repository"
             )
 
-            subprocess.run(
+            run_git(
                 [
                     "git",
                     "-C",
                     str(checkout_dir),
                     "fetch",
-                    "--all",
+                    "origin",
                     "--prune"
-                ],
-                check=True
+                ]
             )
 
-            subprocess.run(
+            run_git(
                 [
                     "git",
                     "-C",
                     str(checkout_dir),
                     "checkout",
                     branch
-                ],
-                check=True
+                ]
             )
 
-            subprocess.run(
+            run_git(
                 [
                     "git",
                     "-C",
                     str(checkout_dir),
-                    "pull",
-                    "--ff-only"
-                ],
-                check=True
+                    "reset",
+                    "--hard",
+                    f"origin/{branch}"
+                ]
             )
 
         else:
@@ -278,7 +476,11 @@ def clone_or_update_repository(
                 exist_ok=True
             )
 
-            subprocess.run(
+            print(
+                "    ↓ Cloning repository"
+            )
+
+            run_git(
                 [
                     "git",
                     "clone",
@@ -286,11 +488,10 @@ def clone_or_update_repository(
                     branch,
                     clone_url,
                     str(checkout_dir)
-                ],
-                check=True
+                ]
             )
 
-    except subprocess.CalledProcessError as exc:
+    except Exception as exc:
 
         raise RuntimeError(
             f"[{title}] Failed to synchronize repository"
