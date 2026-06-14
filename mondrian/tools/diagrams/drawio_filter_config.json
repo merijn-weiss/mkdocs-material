@@ -1,0 +1,8 @@
+{
+  "nodes": {
+    "shape": ["mxgraph.mondrian.base"]
+  },
+  "edges": {
+    "shape": ["mxgraph.mondrian.connector"]
+  }
+}

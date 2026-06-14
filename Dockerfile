@@ -27,6 +27,8 @@ RUN \
     git \
     git-fast-import \
     jpeg-dev \
+    nodejs \
+    npm \
     openssh \
     pngquant \
     tini \
@@ -81,6 +83,13 @@ RUN \
   find /opt/mondrian/plugins \
     -name '*.whl' \
     -exec pip install --no-cache-dir {} \; \
+&& \
+  mkdir -p \
+    /opt/mondrian/tools/elements-to-docs/runtime \
+&& \
+  tar -xzf \
+    /opt/mondrian/tools/elements-to-docs/elements-to-docs-1.7.0.tar.gz \
+    -C /opt/mondrian/tools/elements-to-docs/runtime \
 && \
   chmod +x /opt/mondrian/scripts/* \
 && \

@@ -14,83 +14,188 @@ MKDOCS_PORT="${MKDOCS_PORT:-8000}"
 GENERATED_CONFIG=".mkdocs.generated.yml"
 ASSETS_DIR="docs/_baseSiteAssets"
 
+ELEMENTS_TO_DOCS_MAIN="$(
+    find \
+      "${MONDRIAN_HOME}/tools/elements-to-docs/runtime" \
+      -name main.js \
+      | grep '/elements-to-docs-' \
+      | head -n1 || true
+)"
+
+DEFAULT_BUILD_STEPS=(
+    diagrams
+    elements
+    mkdocs
+)
+
+BUILD_STEPS=()
+SKIP_STEPS=()
+RESOLVED_STEPS=()
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
+
         --site-dir)
             BUILD_DIR="$2"
             shift 2
             ;;
+
+        --steps)
+            IFS=',' read -ra BUILD_STEPS <<< "$2"
+            shift 2
+            ;;
+
+        --skip-steps)
+            IFS=',' read -ra SKIP_STEPS <<< "$2"
+            shift 2
+            ;;
+
         *)
             shift
             ;;
+
     esac
 done
 
-#
-# Logging
-#
-log_whiteline() {
-    echo ""
-}
-
-log_step() {
-    echo "▶ $*"
-}
-
-log_success() {
-    echo "✓ $*"
-}
-
-log_warning() {
-    echo "⚠ $*"
-}
-
-log_error() {
-    echo "✗ $*"
-}
-
-#
-# Helpers
-#
+log_whiteline() { echo ""; }
+log_step() { echo "▶ $*"; }
+log_success() { echo "✓ $*"; }
+log_warning() { echo "⚠ $*"; }
+log_error() { echo "✗ $*"; }
 
 install_assets() {
-
     mkdir -p docs
-
     rm -rf "${ASSETS_DIR}"
-
-    cp -r \
-        "${MONDRIAN_HOME}/assets/_baseSiteAssets" \
-        docs/
+    cp -r "${MONDRIAN_HOME}/assets/_baseSiteAssets" docs/
 }
 
 render_config() {
-
-    python3 \
-        "${MONDRIAN_HOME}/scripts/render-config.py"
+    python3 "${MONDRIAN_HOME}/scripts/render-config.py"
 }
 
 cleanup() {
-
     rm -f "${GENERATED_CONFIG}"
 }
 
 cleanup_assets() {
-
     rm -rf "${ASSETS_DIR}"
 }
 
 cleanup_all() {
-
     log_step "Cleaning temporary files"
-
     cleanup
     cleanup_assets
 }
 
-#
-# Commands
-#
+get_elements_config_folder() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+try:
+    import yaml
+except Exception:
+    sys.exit(0)
+
+manifest = Path("docs.manifest.yml")
+
+if not manifest.exists():
+    sys.exit(0)
+
+try:
+    data = yaml.safe_load(manifest.read_text()) or {}
+except Exception:
+    sys.exit(0)
+
+config_folder = (
+    data
+    .get("elements_to_docs", {})
+    .get("config_folder", "")
+)
+
+if config_folder:
+    print(config_folder)
+PY
+}
+
+resolve_steps() {
+
+    local selected=()
+
+    if [[ ${#BUILD_STEPS[@]} -eq 0 ]]; then
+        selected=("${DEFAULT_BUILD_STEPS[@]}")
+    else
+        selected=("${BUILD_STEPS[@]}")
+    fi
+
+    local filtered=()
+
+    for step in "${selected[@]}"; do
+
+        local skip=false
+
+        for excluded in "${SKIP_STEPS[@]}"; do
+            if [[ "${step}" == "${excluded}" ]]; then
+                skip=true
+                break
+            fi
+        done
+
+        if [[ "${skip}" == "false" ]]; then
+            filtered+=("${step}")
+        fi
+    done
+
+    RESOLVED_STEPS=("${filtered[@]}")
+}
+
+run_step() {
+
+    case "$1" in
+
+        diagrams)
+            log_step "Extracting Mondrian Diagram elements"
+
+            DIAGRAM_ROOT=docs \
+            DIAGRAM_ELEMENTS_BROKER=. \
+            python3 \
+            "${MONDRIAN_HOME}/tools/diagrams/drawio-extractor.py"
+
+            ;;
+
+        elements)
+            ELEMENTS_TO_DOCS_CONFIG_FOLDER="$(get_elements_config_folder)"
+
+            if [[ -z "${ELEMENTS_TO_DOCS_CONFIG_FOLDER}" ]]; then
+                log_warning "No elements_to_docs.config_folder configured, skipping Elements-to-Docs"
+                return 0
+            fi
+
+            if [[ -z "${ELEMENTS_TO_DOCS_MAIN:-}" ]]; then
+                log_warning "Elements-to-Docs runtime not found, skipping"
+                return 0
+            fi
+
+            node \
+                "${ELEMENTS_TO_DOCS_MAIN}" \
+                --configFolder "${ELEMENTS_TO_DOCS_CONFIG_FOLDER}"
+
+            ;;
+
+        mkdocs)
+            log_step "Building documentation"
+            log_whiteline
+
+            mkdocs build \
+                -f "${GENERATED_CONFIG}" \
+                --site-dir "${BUILD_DIR}"
+            ;;
+
+        *)
+            log_warning "Unknown build step: $1"
+            ;;
+    esac
+}
 
 case "${COMMAND}" in
 
@@ -104,12 +209,18 @@ case "${COMMAND}" in
 
         render_config
 
-        log_step "Building documentation"
+        resolve_steps
+
+        log_whiteline
+        echo "Build steps:"
+        for step in "${RESOLVED_STEPS[@]}"; do
+            echo "  - ${step}"
+        done
         log_whiteline
 
-        mkdocs build \
-            -f "${GENERATED_CONFIG}" \
-            --site-dir "${BUILD_DIR}"
+        for step in "${RESOLVED_STEPS[@]}"; do
+            run_step "${step}"
+        done
 
         cleanup
         cleanup_assets

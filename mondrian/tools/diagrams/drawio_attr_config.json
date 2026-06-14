@@ -1,0 +1,10 @@
+{
+  "exclude": [
+    "placeholders",
+    "repoAttributes",
+    "mondrianVersion",
+    "templateAttributes",
+    "templateAttributesMandatory"
+  ],
+  "top_level": []
+}
