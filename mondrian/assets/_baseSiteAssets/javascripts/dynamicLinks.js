@@ -1,14 +1,17 @@
+
 /**
  * dynamicLinks.js
  * Automatically rewrites dynamic service links based on the current docs domain
  * and opens them in a new browser tab.
+ *
+ * Compatible with MkDocs Material instant navigation.
  *
  * Example usage in Markdown:
  *   [Vault](#){data-service="vault"}
  *   [NetBox](#){data-service="netbox"}
  *   [Workflow](#){data-service="workflow"}
  */
-document.addEventListener("DOMContentLoaded", function() {
+document$.subscribe(function () {
   const host = window.location.hostname; // e.g., docs.deployervm.kreative.green
   const protocol = window.location.protocol; // keep http/https
   const baseDomain = host.replace(/^docs\./, ""); // → deployervm.kreative.green
